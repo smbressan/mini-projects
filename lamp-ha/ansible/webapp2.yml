@@ -1,0 +1,31 @@
+
+# Playbook for webapp provisioning. 
+---
+
+- hosts: all # hosts to be configured
+  vars: 
+    node: webapp2
+  become: yes
+  become_method: sudo
+ 
+  tasks:
+  - name: update
+    apt: update_cache=yes
+
+  - name: install apache2 
+    apt: name=apache2 state=present
+
+  - name: install PHP module for Apache
+    apt: name=libapache2-mod-php5 state=present  
+
+  - name: add index.php
+    template: src=../files/index.php dest=/var/www/index.php
+
+  - name: Change default Apache virtual host
+    template: src=../config/apache-conf dest=/etc/apache2/sites-enabled/000-default 
+ 
+  - name: restart apache2
+    service: name=apache2 state=restarted
+ 
+  - debug: msg="apache has been installed"
+

@@ -1,0 +1,46 @@
+# Playbook for HAProxy 2 provisioning. 
+---
+
+- hosts: all 
+  vars:
+    node: haproxy1
+    priority: 101
+  become: yes
+  become_method: sudo
+
+  tasks:
+  - name: update
+    apt: update_cache=yes
+
+  - name: install haproxy
+    apt: name=haproxy state=present
+
+  - name: install keepalived
+    apt: name=keepalived state=present
+
+  - name:  init script to start haproxy
+    template: src=../config/haproxy dest=/etc/default/haproxy
+
+  - name: haproxy configuration files
+    template: src=../config/haproxy.cfg dest=/etc/haproxy/haproxy.cfg 
+  
+  #- name: backup haproxy.cfg
+  #  copy: src=/etc/haproxy/haproxy.cfg dest=/etc/haproxy/haproxy.cfg.orig 
+  
+  - name: haproxy restart
+    service: name=haproxy state=restarted
+  
+  - name: sysctl values
+    lineinfile:
+      dest: /etc/sysctl.conf
+      line: net.ipv4.ip_nonlocal_bind=1
+  
+  - name: reload sysctl.conf
+    command: /sbin/sysctl -p
+
+  - name: haproxy configuration files
+    template: src=../config/keepalived.conf dest=/etc/keepalived/keepalived.conf      
+ 
+  - name: keepalived restart
+    service: name=keepalived state=restarted
+

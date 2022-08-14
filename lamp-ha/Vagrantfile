@@ -1,0 +1,89 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "hashicorp/precise64"
+  #config.vm.box_url = "http://files.vagrantup.com/precise32.box"
+  config.vm.provider "virtualbox" do |v|
+    v.customize ["modifyvm", :id, "--memory", 256]
+  end
+#database
+  config.vm.synced_folder ".", "/vagrant", mount_options: ["dmode=700,fmode=600"]
+  config.vm.synced_folder "./config", "/vagrant/config", mount_options: ["dmode=755,fmode=755"]
+
+
+  config.vm.define :haproxy1, primary: true do |haproxy1_config|
+
+    haproxy1_config.vm.hostname = 'haproxy1'  
+    haproxy1_config.vm.network :private_network, ip: "192.168.1.9"
+    haproxy1_config.vm.provision :ansible do |ansible|
+    ansible.playbook = 'ansible/haproxy1.yml'
+    end
+
+  end
+   config.vm.define :haproxy2, primary: true do |haproxy2_config|
+
+    haproxy2_config.vm.hostname = 'haproxy2'
+    haproxy2_config.vm.network :private_network, ip: "192.168.1.10"
+    haproxy2_config.vm.provision :ansible do |ansible|
+    ansible.playbook = 'ansible/haproxy2.yml'
+    end
+
+  end
+  config.vm.define :web1 do |web1_config|
+
+    web1_config.vm.hostname = 'web1'
+    web1_config.vm.network :private_network, ip: "192.168.1.11"
+    web1_config.vm.provision :ansible do |ansible|
+    ansible.playbook = 'ansible/webapp1.yml'
+    end
+
+  end
+  config.vm.define :web2 do |web2_config|
+
+    web2_config.vm.hostname = 'web2'
+    web2_config.vm.network :private_network, ip: "192.168.1.12"
+    web2_config.vm.provision :ansible do |ansible|
+    ansible.playbook = 'ansible/webapp2.yml'
+    end
+
+  end
+  config.vm.define "mysqlslave" do |mysqlslave|
+    mysqlslave.vm.box = "ubuntu/precise64"
+    mysqlslave.vm.hostname = 'mysqlslave'
+    mysqlslave.vm.synced_folder "./data/slave", "/var/lib/mysql_vagrant" , id: "mysql",
+    owner: 108, group: 113,  # owner: "mysql", group: "mysql",
+    mount_options: ["dmode=775,fmode=664"]
+
+    mysqlslave.vm.network :private_network, ip: "192.168.1.13"
+
+    mysqlslave.vm.provider :virtualbox do |v|
+      v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+      v.customize ["modifyvm", :id, "--memory", 512]
+      v.customize ["modifyvm", :id, "--name", "mysqlslave"]
+    end
+
+    mysqlslave.vm.provision :shell, path: "scripts/bootstrap-slave.sh"
+  end
+
+  config.vm.define "mysqlmaster" do |mysqlmaster|
+    mysqlmaster.vm.box = "ubuntu/precise64"
+    mysqlmaster.vm.hostname = 'mysqlmaster'
+    mysqlmaster.vm.synced_folder "./data/master", "/var/lib/mysql_vagrant" , id: "mysql",
+    owner: 108, group: 113,  # owner: "mysql", group: "mysql",
+    mount_options: ["dmode=775,fmode=664"]
+
+    mysqlmaster.vm.network :private_network, ip: "192.168.1.14"
+
+    mysqlmaster.vm.provider :virtualbox do |v|
+      v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+      v.customize ["modifyvm", :id, "--memory", 512]
+      v.customize ["modifyvm", :id, "--name", "mysqlmaster"]
+    end
+
+    mysqlmaster.vm.provision :shell, path: "scripts/bootstrap-master.sh"
+
+  end
+end
